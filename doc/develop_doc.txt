@@ -1,0 +1,124 @@
+2012-02-24
+
+说明:
+	改文档是总结开发过程中遇到的问题。
+
+1、	问题:probe命名空间匹配问题
+		Tags 'wsa:MessageID' and 'wsa:MessageID' match but namespaces differ
+	解决方法:
+		修改命名空间
+		
+2、问题:ws-discovery协议
+
+3、开发标准--注释
+/**************************************************
+*功能:		初始化全局变量对应的结构体
+*参数:		_pThis:		全局变量 g_stOnvifCtrl
+*返回值:	0: 成功, !0: 失败
+*修改历史:
+	20120224 v1.0 creat by xxx
+**************************************************/
+
+/**************************************************
+*功能:		详细描述函数的功能
+*参数:		_ptSoap:		tcp soap
+*返回值:	0: 成功, !0: 失败
+*修改历史:
+	20120224 v1.0 creat by xxx
+**************************************************/
+
+文件注释
+/*
+ *	file: common.c
+ *	description: common funcs
+ *	history: dongliqiang created at 20120207
+ */
+
+标点符号一定要用英文!
+
+4、VM和主机通信调试问题
+	主机能ping通vm,但是vm无法ping通host.问题是host没有关闭防火墙.
+
+2012-02-25
+
+1、开始实现配置文件的操作
+
+
+2012-02-27
+1、开发流程
+	读三个文件: ONVIF-Core-Specification-v210.pdf, test文档, ONVIF_WG-APG-Application_Programmer's_Guide.pdf
+
+
+2012-02-28
+1、发现设备 gdb
+	(gdb) p *ptSoap->header 
+	$2 = {wsa__MessageID = 0x0, wsa__RelatesTo = 0x0, wsa__From = 0x0, 
+	  wsa__ReplyTo = 0x0, wsa__FaultTo = 0x0, wsa__To = 0x0, wsa__Action = 0x0, 
+	  wsa5__MessageID = 0x228df8 "uuid:b493a69c-c4d7-4301-a6af-f79d72cde077", 
+	  wsa5__RelatesTo = 0x0, wsa5__From = 0x0, wsa5__ReplyTo = 0x0, 
+	  wsa5__FaultTo = 0x0, 
+	  wsa5__To = 0x228e30 "urn:schemas-xmlsoap-org:ws:2005:04:discovery", 
+	  wsa5__Action = 0x228e70 "http://schemas.xmlsoap.org/ws/2005/04/discovery/
+	Probe", wsse__Security = 0x0}
+
+可以看出，我们用的是was5
+
+2012-03-01
+
+1、对于调用
+
+修改如下:
+	if (!soap_match_tag(soap, soap->tag, "d:Hello"))
+		//return soap_serve___ns1__Hello(soap);		//dlq modified at 20120301
+		return soap->error = SOAP_STOP;				
+	if (!soap_match_tag(soap, soap->tag, "d:Bye"))	//dlq modified at 20120301
+		//return soap_serve___ns1__Bye(soap);
+		return soap->error = SOAP_STOP;
+
+注意:
+	//首先要退出多播组,以免自己接收到数据
+
+	//通信结束后重新加入多播组
+
+	ONVIF命名空间问题，必须修改
+//	{"wsa5", "http://www.w3.org/2005/08/addressing", "http://schemas.xmlsoap.org/ws/2004/08/addressing", NULL},
+	{"c14n", "http://www.w3.org/2001/10/xml-exc-c14n#", NULL, NULL},
+	{"wsu", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd", NULL, NULL},
+	{"xenc", "http://www.w3.org/2001/04/xmlenc#", NULL, NULL},
+	{"ds", "http://www.w3.org/2000/09/xmldsig#", NULL, NULL},
+	{"wsse", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd", "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd", NULL},
+//	{"wsa", "http://schemas.xmlsoap.org/ws/2004/08/addressing", NULL, NULL},
+	{"wsa", "http://www.w3.org/2005/08/addressing", "http://schemas.xmlsoap.org/ws/2004/08/addressing", NULL},
+
+	最后问题解决,全不是以上所述.是UUID在Hello消息中与ProbeMatch中的要保持一致.
+
+	所以今后出现问题后要先读文档!
+		
+2012-03-03
+接口:
+SetScopes
+1、This operation replaces all existing configurable scope parameters (not fixed parameters).
+
+错误处理:
+soap_receiver_fault
+soap_receiver_fault_subcode
+
+soap_sender_fault
+soap_sender_fault_subcode
+
+Server-side faults are raised with soap sender fault or soap receiver fault. 
+The soap sender fault call should be used to inform that the sender is at fault and the sender (client) 
+should not resend the request. The soap receiver fault call should be used to indicate a 
+temporary server-side problem, so a sender (client) can resend the request later.
+
+解决方案:
+	soap_sender_fault(ptSoap, "Scope parameter overwrites fixed device scope setting, command rejected.", NULL);
+	*soap_faultsubcode(ptSoap) = "ter:OperationProhibited";
+	*soap_faultsubsubcode(ptSoap) = "ter:ScopeOverwrite";
+
+2012-03-13
+	单独添加sec，然后添加对应的key以及val
+
+2012-04-12
+	遗留问题:
+	1、共享内存获取最大分辨率

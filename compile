@@ -1,0 +1,30 @@
+###################################################################################
+#使用说明：
+#1.请确保onvifc目录下有onvifC.o_nptl，onvifC.o_hismall，onvifC.o_hisiv100文件
+#2.参数说明  -h0			使用hismall编译链3512,3515
+#            -h1			使用hisv100编译连3516						cooper球
+#            -h3			使用hisiv100nptl编译连3518,3531,3520D	S3E
+###################################################################################
+#! /bin/sh
+if [ $1 = "-h0" ];
+then
+		rm ./obj/onvifC.o
+		cp ./onvifc/onvifC.o_hismall ./obj/onvifC.o
+		make clean
+		make mode=hismall
+		echo "##################make hismall successed!##################"	
+elif [ $1 = "-h1" ];
+then
+		rm ./obj/onvifC.o
+		cp ./onvifc/onvifC.o_v100 ./obj/onvifC.o
+		make clean
+		make mode=v100
+		echo "##################make hisiv100 successed!##################"	
+elif [ $1 = "-h3" ];
+then
+		rm ./obj/onvifC.o
+		cp ./onvifc/onvifC.o_nptl ./obj/onvifC.o
+		make clean
+		make mode=nptl
+		echo "##################make hisiv100nptl successed!##################"	
+fi
