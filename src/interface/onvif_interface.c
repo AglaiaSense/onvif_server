@@ -7057,11 +7057,12 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetProfile(struct soap* ptSoap, struct _trt__Ge
 	//response
 	trt__GetProfileResponse->Profile = &ptOnvifCtrl->m_stOnvifCfg.m_ptProfilesRsp->Profiles[iProNum];
 
-
-	trt__GetProfileResponse->Profile->VideoSourceConfiguration->Bounds->height = height;
-	trt__GetProfileResponse->Profile->VideoSourceConfiguration->Bounds->width = width;
-	trt__GetProfileResponse->Profile->VideoEncoderConfiguration->Resolution->Width = width;
-	trt__GetProfileResponse->Profile->VideoEncoderConfiguration->Resolution->Height = height;
+	if (iProNum < 2) {
+		trt__GetProfileResponse->Profile->VideoSourceConfiguration->Bounds->height = ptOnvifCtrl->m_rtsp_svr_ctrl[iProNum].height;
+		trt__GetProfileResponse->Profile->VideoSourceConfiguration->Bounds->width = ptOnvifCtrl->m_rtsp_svr_ctrl[iProNum].width;
+		trt__GetProfileResponse->Profile->VideoEncoderConfiguration->Resolution->Width = ptOnvifCtrl->m_rtsp_svr_ctrl[iProNum].width;
+		trt__GetProfileResponse->Profile->VideoEncoderConfiguration->Resolution->Height = ptOnvifCtrl->m_rtsp_svr_ctrl[iProNum].height;
+	}
 	trt__GetProfileResponse->Profile->VideoEncoderConfiguration->RateControl->FrameRateLimit = 25;
 	trt__GetProfileResponse->Profile->VideoEncoderConfiguration->RateControl->BitrateLimit = 384;
 	trt__GetProfileResponse->Profile->VideoEncoderConfiguration->H264->GovLength = 25;
@@ -7094,10 +7095,10 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetProfiles(struct soap* ptSoap, struct _trt__G
 
 	for(int i = 0; i < trt__GetProfilesResponse->__sizeProfiles; i++)
 	{
-		trt__GetProfilesResponse->Profiles[i].VideoSourceConfiguration->Bounds->width = width;
-		trt__GetProfilesResponse->Profiles[i].VideoSourceConfiguration->Bounds->height = height;
-		trt__GetProfilesResponse->Profiles[i].VideoEncoderConfiguration->Resolution->Width = width;
-		trt__GetProfilesResponse->Profiles[i].VideoEncoderConfiguration->Resolution->Height = height;
+		trt__GetProfilesResponse->Profiles[i].VideoSourceConfiguration->Bounds->width = ptOnvifCtrl->m_rtsp_svr_ctrl[i].width;
+		trt__GetProfilesResponse->Profiles[i].VideoSourceConfiguration->Bounds->height = ptOnvifCtrl->m_rtsp_svr_ctrl[i].height;
+		trt__GetProfilesResponse->Profiles[i].VideoEncoderConfiguration->Resolution->Width = ptOnvifCtrl->m_rtsp_svr_ctrl[i].width;
+		trt__GetProfilesResponse->Profiles[i].VideoEncoderConfiguration->Resolution->Height = ptOnvifCtrl->m_rtsp_svr_ctrl[i].height;
 	}
 	return SOAP_OK;
 }
@@ -8515,8 +8516,8 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetVideoEncoderConfigurations(struct soap* ptSo
 	trt__GetVideoEncoderConfigurationsResponse->Configurations = ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgRsp->Configurations;
 
 	struct tt__VideoEncoderConfiguration *ptr = trt__GetVideoEncoderConfigurationsResponse->Configurations;
-	ptr->Resolution->Width = 512;
-	ptr->Resolution->Height = 240;
+	ptr->Resolution->Width = ptOnvifCtrl->m_rtsp_svr_ctrl[0].width;
+	ptr->Resolution->Height = ptOnvifCtrl->m_rtsp_svr_ctrl[0].height;
 
 	return SOAP_OK;
 }
@@ -8691,8 +8692,8 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetVideoSourceConfiguration(struct soap* ptSoap
 	}
 
 	trt__GetVideoSourceConfigurationResponse->Configuration = ptOnvifCtrl->m_stOnvifCfg.m_ptVideoSourceCfgRsp->Configurations + iVSCNum;
-	trt__GetVideoSourceConfigurationResponse->Configuration->Bounds->width = width;
-	trt__GetVideoSourceConfigurationResponse->Configuration->Bounds->height = height;
+	trt__GetVideoSourceConfigurationResponse->Configuration->Bounds->width = ptOnvifCtrl->m_rtsp_svr_ctrl[0].width;
+	trt__GetVideoSourceConfigurationResponse->Configuration->Bounds->height = ptOnvifCtrl->m_rtsp_svr_ctrl[0].height;
 
 	return SOAP_OK;
 }
@@ -9410,7 +9411,7 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__SetVideoEncoderConfiguration(struct soap* ptSoa
 	{
 		return SOAP_ERR;
 	}
-
+#if 0
 	//token
 	for(i = 0; i < pSaveRsp->__sizeConfigurations; i++)
 	{
@@ -9446,14 +9447,6 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__SetVideoEncoderConfiguration(struct soap* ptSoa
 			}
 		}
 	}
-#if 0
-	//confilect
-	if(ptOnvifCtrl->m_stOnvifCfg.m_ptrt__GetVideoEncoderConfigurationsResponse->Configurations[iVECNum].UseCount > 1)
-	{
-		sprintf(pcTmpReason, "The new settings conflicts with other uses of the configuration.");
-		return soap_receiver_fault_info(ptSoap, pcTmpReason, "ter:Action", "ter:ConfigurationConflict");
-	}
-#endif
 
 	if(!pointer_valid_check(ptSetConfig->Name))
 	{
@@ -9513,7 +9506,29 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__SetVideoEncoderConfiguration(struct soap* ptSoa
 	{
 		pSaveRsp->Configurations[iVECNum].SessionTimeout = ptSetConfig->SessionTimeout;
 	}
+	#endif
 	
+	OnvifCtrl *ptOnvifCtrl = &g_stOnvifCtrl;
+
+	td_printf(0, "SetVideoEncoderConfiguration Resolution[%d %d]\n", ptSetConfig->Resolution->Width, ptSetConfig->Resolution->Height);
+
+	if(0 == strcmp(ptSetConfig->token, "vectoken_ch01")) {
+		ptOnvifCtrl->m_rtsp_svr_ctrl[0].width  = ptSetConfig->Resolution->Width;
+		ptOnvifCtrl->m_rtsp_svr_ctrl[0].height = ptSetConfig->Resolution->Height;
+	}else if(0 == strcmp(ptSetConfig->token, "vectoken_ch02")) {
+		ptOnvifCtrl->m_rtsp_svr_ctrl[1].width  = ptSetConfig->Resolution->Width;
+		ptOnvifCtrl->m_rtsp_svr_ctrl[1].height = ptSetConfig->Resolution->Height;
+	}
+
+	// killall gst-variable-rtsp-server
+	char cmd_buf[128] = {0};
+	sprintf(cmd_buf, "killall gst-variable-rtsp-server");
+	system(cmd_buf);
+	td_printf(0, "%s %d %s: kill rtsp server thread success !\n", __FILE__, __LINE__, __FUNCTION__);
+
+	ptOnvifCtrl->m_rtsp_svr_ctrl[0].restart_rtsp_flag = 1;
+	ptOnvifCtrl->m_rtsp_svr_ctrl[1].restart_rtsp_flag = 1;
+
 	return SOAP_OK;
 }
  
@@ -10153,47 +10168,19 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetVideoEncoderConfigurationOptions(struct soap
 
 	pstH264Options = ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVECNum].H264;
 
-	//更新分辨率列表
-	iVideoListNum = OnvifCmdGetVideoChnSizeList(iVECNum + 1, piVideoList, MAX_VIDEOSIZE_LIST);
+	//更新分辨率列表	
+	pstH264Options->__sizeResolutionsAvailable = 4;
+	pstH264Options->ResolutionsAvailable[0].Width  = 1920;
+	pstH264Options->ResolutionsAvailable[0].Height = 1080;
+	pstH264Options->ResolutionsAvailable[1].Width  = 1280;
+	pstH264Options->ResolutionsAvailable[1].Height = 960;
+	pstH264Options->ResolutionsAvailable[2].Width  = 1280;
+	pstH264Options->ResolutionsAvailable[2].Height = 720;
+	pstH264Options->ResolutionsAvailable[3].Width  = 640;
+	pstH264Options->ResolutionsAvailable[3].Height = 480;
 
-	iNorm    = (ptOnvifCtrl->m_stNvsInfo.m_tVideoParam.m_InputNorm[iVECNum % ptOnvifCtrl->m_stNvsInfo.m_iVINum] == GUI_PAL_MODE) ? 0 : 1;
-	iSrcSize = pstH264Options->__sizeResolutionsAvailable;
-
-	if(iVideoListNum > iSrcSize)
-	{
-		pVRDest = (struct tt__VideoResolution *)(char *)soap_mallocz(ptSoap, (iVideoListNum - iSrcSize) * sizeof(struct tt__VideoResolution));
-		if(pointer_valid_check(pVRDest))
-		{
-			return SOAP_ERR;
-		}
-		
-		pstH264Options->ResolutionsAvailable = \
-			(struct tt__VideoResolution *)ArrayAdd(pstH264Options->ResolutionsAvailable, sizeof(struct tt__VideoResolution) * iSrcSize, pVRDest, sizeof(struct tt__VideoResolution) * (iVideoListNum - iSrcSize));
-		if(pointer_valid_check(pstH264Options->ResolutionsAvailable))
-		{
-			return SOAP_ERR;
-		}
-	}
-
-	pstH264Options->__sizeResolutionsAvailable = iVideoListNum;
-	
-	for(i = 0; i < iVideoListNum; i++)
-	{
-		if(H960 == piVideoList[i])
-		{
-			pstH264Options->ResolutionsAvailable[i].Width  = 960;
-			pstH264Options->ResolutionsAvailable[i].Height = 576;
-		}
-		else
-		{
-			GetVideoWidthHeight(piVideoList[i], iNorm, \
-				(unsigned short*)&(pstH264Options->ResolutionsAvailable[i].Width), \
-				(unsigned short*)&(pstH264Options->ResolutionsAvailable[i].Height));
-		}
-	}
-	
 	//response
-	trt__GetVideoEncoderConfigurationOptionsResponse->Options = ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options + iVECNum;
+	trt__GetVideoEncoderConfigurationOptionsResponse->Options = ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options;
 
 	return SOAP_OK;
 }
@@ -10620,7 +10607,11 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetStreamUri(struct soap* ptSoap, struct _trt__
 	trt__GetStreamUriResponse->MediaUri = (struct tt__MediaUri *)soap_mallocz(ptSoap, sizeof(struct tt__MediaUri));
 	trt__GetStreamUriResponse->MediaUri->Uri = (char *)soap_mallocz(ptSoap, 1024);
 	
-	sprintf(trt__GetStreamUriResponse->MediaUri->Uri, "rtsp://%s:%d/stream", ptOnvifCtrl->m_stNvsInfo.m_cLocalIP, ptOnvifCtrl->m_stRtspServer.m_iLPort);
+	int port = ptOnvifCtrl->m_stRtspServer.m_iLPort;
+	if(!strcmp(trt__GetStreamUri->ProfileToken, "protoken_ch02")) {
+		port += 1;
+	}
+	sprintf(trt__GetStreamUriResponse->MediaUri->Uri, "rtsp://%s:%d/stream", ptOnvifCtrl->m_stNvsInfo.m_cLocalIP, port);
 
 	trt__GetStreamUriResponse->MediaUri->InvalidAfterConnect = xsd__boolean__false_;
 	trt__GetStreamUriResponse->MediaUri->InvalidAfterReboot = xsd__boolean__false_;
@@ -12105,34 +12096,6 @@ SOAP_FMAC5 int SOAP_FMAC6 __trt__GetAudioOutputs_(struct soap* ptSoap, struct _t
 	20120224 v1.0 creat by xxx
 **************************************************/
 SOAP_FMAC5 int SOAP_FMAC6 __trt__CreateProfile_(struct soap* ptSoap, struct _trt__CreateProfile *trt__CreateProfile, struct _trt__CreateProfileResponse *trt__CreateProfileResponse)
-{
-	td_printf(0, "%s %d %s start!\n", __FILE__, __LINE__, __FUNCTION__);
-
-	return 0;
-}
- 
-/**************************************************
-*功能:		详细描述函数的功能
-*参数:		_ptSoap:		tcp soap
-*返回值:	0: 成功, !0: 失败
-*修改历史:
-	20120224 v1.0 creat by xxx
-**************************************************/
-SOAP_FMAC5 int SOAP_FMAC6 __trt__GetProfile_(struct soap* ptSoap, struct _trt__GetProfile *trt__GetProfile, struct _trt__GetProfileResponse *trt__GetProfileResponse)
-{
-	td_printf(0, "%s %d %s start!\n", __FILE__, __LINE__, __FUNCTION__);
-
-	return 0;
-}
- 
-/**************************************************
-*功能:		详细描述函数的功能
-*参数:		_ptSoap:		tcp soap
-*返回值:	0: 成功, !0: 失败
-*修改历史:
-	20120224 v1.0 creat by xxx
-**************************************************/
-SOAP_FMAC5 int SOAP_FMAC6 __trt__GetProfiles_(struct soap* ptSoap, struct _trt__GetProfiles *trt__GetProfiles, struct _trt__GetProfilesResponse *trt__GetProfilesResponse)
 {
 	td_printf(0, "%s %d %s start!\n", __FILE__, __LINE__, __FUNCTION__);
 
@@ -16784,30 +16747,20 @@ int UpdateVideoInfo(OnvifCtrl *_pThis, int _iChan)
 	//帧率范围
 	if(GUI_PAL_MODE == ptOnvifCtrl->m_stNvsInfo.m_tVideoParam.m_InputNorm[iVIChan])
 	{
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].JPEG->FrameRateRange->Max = PAL_MAXFRAMERATE;
+		//ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].JPEG->FrameRateRange->Max = PAL_MAXFRAMERATE;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].H264->FrameRateRange->Max = PAL_MAXFRAMERATE;
 	
-		//Extension
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].Extension->JPEG->FrameRateRange->Max = PAL_MAXFRAMERATE;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].Extension->H264->FrameRateRange->Max = PAL_MAXFRAMERATE;
 	}
 	else if(GUI_NTSC_MODE == ptOnvifCtrl->m_stNvsInfo.m_tVideoParam.m_InputNorm[iVIChan])
 	{
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].JPEG->FrameRateRange->Max = NTSC_MAXFRAMERATE;
+		//ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].JPEG->FrameRateRange->Max = NTSC_MAXFRAMERATE;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].H264->FrameRateRange->Max = NTSC_MAXFRAMERATE;
 	
-		//Extension
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].Extension->JPEG->FrameRateRange->Max = NTSC_MAXFRAMERATE;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].Extension->H264->FrameRateRange->Max = NTSC_MAXFRAMERATE;
 	}
 	else
 	{
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].JPEG->FrameRateRange->Max = PAL_MAXFRAMERATE;
+		//ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].JPEG->FrameRateRange->Max = PAL_MAXFRAMERATE;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].H264->FrameRateRange->Max = PAL_MAXFRAMERATE;
-	
-		//Extension
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].Extension->JPEG->FrameRateRange->Max = PAL_MAXFRAMERATE;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[iVEChan].Extension->H264->FrameRateRange->Max = PAL_MAXFRAMERATE;
 	}
 	
 	//编码方式

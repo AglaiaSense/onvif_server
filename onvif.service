@@ -1,0 +1,15 @@
+[Unit]
+Description=Aglaia Onvif Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 10
+ExecStart=/home/root/onvif/onvif.bin &
+WorkingDirectory=/home/root/onvif/
+Restart=no
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

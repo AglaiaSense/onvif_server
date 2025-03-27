@@ -22,7 +22,7 @@
 #include "proparser.h"
 #include "gvar_mem.h"
 #include "onvif_interface.h"
-#include "wsaapi.h"1
+#include "wsaapi.h"
 #include "onvif_shm_cmd.h"
 #include "share_mem.h"
 #include "onvif_heartbeat.h"
@@ -39,6 +39,11 @@
 
 //全局变量
 OnvifCtrl g_stOnvifCtrl;	//onvif server control
+
+int tcp_svr_exit_flag;
+int udp_svr_exit_flag;
+int rtsp_svr_exit_flag;
+int main_exit_flag;
 
 extern SOAP_NMAC struct Namespace namespaces_probe[];
 extern FILE* fpProc;
@@ -971,48 +976,6 @@ static int UdpInit(void *_pThis)
 }
 
 /**************************************************
-*功能:		event soap init
-*参数:		_pThis
-*返回值:	>0: 成功
-				0 >: 失败
-*修改历史:20131031 v2.3.1 creat by ptb
-**************************************************/
-static int EventInit(void *_pThis)
-{
-	OnvifCtrl *ptOnvifCtrl 	= (OnvifCtrl *)_pThis;
-	struct soap *ptEventSoap = NULL;
-	char *pcIpaddr = NULL;
-	int iEventPort = 0;
-	int iRet = 0;
-	
-	if(pointer_valid_check(ptOnvifCtrl))
-	{
-		return TD_ERROR;
-	}
-
-	ptEventSoap = &ptOnvifCtrl->m_stSoapEvent;
-	pcIpaddr    = (char *)ptOnvifCtrl->m_stNvsInfo.m_cLocalIP;
-	iEventPort  = ptOnvifCtrl->m_stNvsInfo.m_iLEventPort;
-
-	//Event soap init
-	soap_init(ptEventSoap);
-
-	//soap 参数设置
-	ptEventSoap->socket_flags   = MSG_NOSIGNAL;		//屏蔽SIGPIPE
-	ptEventSoap->bind_flags     = SO_REUSEADDR;
-	ptEventSoap->accept_timeout = ACCEPT_TIMEOUT;	//accept超时
-	ptEventSoap->send_timeout   = SEND_TIMEOUT;
-	ptEventSoap->recv_timeout   = RECV_TIMEOUT;
-	ptEventSoap->accept_flags   = SO_LINGER;
-	ptEventSoap->linger_time    = LINGER_TIMEOUT;
-
-	//soap bind
-	iRet = soap_bind(ptEventSoap, pcIpaddr, iEventPort, BACK_LOG);
-
-	return iRet; 
-}
-
-/**************************************************
 *功能:		初始化gsoap网络
 *参数:		_pThis
 *返回值:	0: 成功, !0: 失败
@@ -1139,9 +1102,9 @@ static int Init(void *_pThis)
 	pthread_mutex_init(&ptOnvifCtrl->m_stMutexLock, NULL);
 
 	ptOnvifCtrl->m_stNvsInfo.m_iDeviceType = DEVICE_IPC;
-	ptOnvifCtrl->m_stNvsInfo.m_iVINum = 1;
-	ptOnvifCtrl->m_stNvsInfo.m_iVENum = ptOnvifCtrl->m_stNvsInfo.m_iVINum * MAX_STREAM;
-	ptOnvifCtrl->m_stNvsInfo.m_iVONum = 1;
+	ptOnvifCtrl->m_stNvsInfo.m_iVINum = 2;
+	ptOnvifCtrl->m_stNvsInfo.m_iVENum = ptOnvifCtrl->m_stNvsInfo.m_iVINum;// * MAX_STREAM;
+	ptOnvifCtrl->m_stNvsInfo.m_iVONum = 0;
 
 	//配置文件初始化
 	if(ProInit(ptOnvifCtrl))
@@ -1187,10 +1150,18 @@ static int Init(void *_pThis)
 		return TD_ERROR; 
 	}
 #endif
+
+	
+	ptOnvifCtrl->camera_flag  = GetProInt(ptOnvifCtrl->m_ptOnvifDict, "device", 0, "camera_num", 0, 0);
+	ptOnvifCtrl->m_rtsp_svr_ctrl[0].width  = GetProInt(ptOnvifCtrl->m_ptOnvifDict, "profile_01", 0, "resolution_width", 0, 1920);
+	ptOnvifCtrl->m_rtsp_svr_ctrl[0].height = GetProInt(ptOnvifCtrl->m_ptOnvifDict, "profile_01", 0, "resolution_height", 0, 1080);
+	ptOnvifCtrl->m_rtsp_svr_ctrl[1].width  = GetProInt(ptOnvifCtrl->m_ptOnvifDict, "profile_02", 0, "resolution_width", 0, 1920);
+	ptOnvifCtrl->m_rtsp_svr_ctrl[1].height = GetProInt(ptOnvifCtrl->m_ptOnvifDict, "profile_02", 0, "resolution_height", 0, 1080);
+	
 	//soap网络初始化
 	if(SoapInit(ptOnvifCtrl))
 	{
-		printf("%s %d %s SoapInit error!\n", __FILE__, __LINE__, __FUNCTION__);
+		td_printf(SYS_INFO_PRINTF, "%s %d %s SoapInit error!\n", __FILE__, __LINE__, __FUNCTION__);
 		return TD_ERROR; 
 	}
 #if 0
@@ -1202,7 +1173,7 @@ static int Init(void *_pThis)
 	}
 #endif
 
-	printf("%s %d %s success !\n", __FILE__, __LINE__, __FUNCTION__);
+	td_printf(SYS_INFO_PRINTF, "%s %d %s success !\n", __FILE__, __LINE__, __FUNCTION__);
 	return iRet;
 }
 
@@ -1277,7 +1248,7 @@ ERR:
 		usleep(10 * 1000);
 		soap_destroy(ptTcpSoap);
 		soap_end(ptTcpSoap);
-	}while(1);
+	}while(tcp_svr_exit_flag);
 
 	soap_done(ptTcpSoap);
 	return NULL;
@@ -1311,13 +1282,13 @@ void *OnvifUdpServer(void *_pArg)
 		soap_serve(ptUdpSoap);
 		soap_destroy(ptUdpSoap);
 		soap_end(ptUdpSoap);
-	}while(1);
+	}while(udp_svr_exit_flag);
 
 	soap_done(ptUdpSoap);
 	return NULL;
 }
 
-void *start_rtsp_server(void *_pArg)
+void *start_rtsp_server_left(void *_pArg)
 {
 	td_printf(0, "%s %d %s start!\n", __FILE__, __LINE__, __FUNCTION__);
 	OnvifCtrl *ptOnvifCtrl = (OnvifCtrl *)_pArg;
@@ -1328,20 +1299,42 @@ void *start_rtsp_server(void *_pArg)
 		return NULL;
 	}
 
-	//gst-variable-rtsp-server -p 9001 -u "v4l2src device=/dev/video2 ! video/x-raw,width=1920,height=1088 ! vpuenc_h264 ! rtph264pay name=pay0 pt=96"
 	char rtsp_server_start_cmd[256] = {0};
-	sprintf(rtsp_server_start_cmd, "gst-variable-rtsp-server -p %d -u \"v4l2src device=/dev/video2 ! video/x-raw,width=1920,height=1088 ! vpuenc_h264 ! rtph264pay name=pay0 pt=96\"", \
-		ptOnvifCtrl->m_stRtspServer.m_iLPort);
 
-	td_printf(SYS_INFO_PRINTF, "%s %d %s : rtsp_server_start_cmd = %s \n", __FILE__, __LINE__, __FUNCTION__, rtsp_server_start_cmd);
-#if 1
+	sprintf(rtsp_server_start_cmd, "gst-variable-rtsp-server -p %d -u \"v4l2src device=/dev/video2 ! videocrop left=0 right=0 top=0 bottom=410 ! imxvideoconvert_g2d rotation=0 ! video/x-raw,width=%d,height=%d ! vpuenc_h264 ! rtph264pay name=pay0 pt=96\"", \
+		ptOnvifCtrl->m_stRtspServer.m_iLPort, ptOnvifCtrl->m_rtsp_svr_ctrl[0].width, ptOnvifCtrl->m_rtsp_svr_ctrl[0].height);
 	int status = system(rtsp_server_start_cmd);
     if (status == 0) {
 		td_printf(0, "%s %d %s: rtsp server start success !\n", __FILE__, __LINE__, __FUNCTION__);
     } else {
-		td_printf(0, "%s %d %s: rtsp server start error !\n", __FILE__, __LINE__, __FUNCTION__);
+		td_printf(0, "%s %d %s: rtsp server left exit !\n", __FILE__, __LINE__, __FUNCTION__);
     }
-#endif
+
+	return NULL;
+}
+
+void *start_rtsp_server_right(void *_pArg)
+{
+	td_printf(0, "%s %d %s start!\n", __FILE__, __LINE__, __FUNCTION__);
+	OnvifCtrl *ptOnvifCtrl = (OnvifCtrl *)_pArg;
+	func_info(-1);
+	
+	if(NULL == ptOnvifCtrl)
+	{
+		return NULL;
+	}
+
+	char rtsp_server_start_cmd[256] = {0};
+
+	sprintf(rtsp_server_start_cmd, "gst-variable-rtsp-server -p %d -u \"v4l2src device=/dev/video3 ! videocrop left=0 right=0 top=0 bottom=410 ! imxvideoconvert_g2d rotation=0 ! video/x-raw,width=%d,height=%d ! vpuenc_h264 ! rtph264pay name=pay0 pt=96\"", \
+		ptOnvifCtrl->m_stRtspServer.m_iLPort+1, ptOnvifCtrl->m_rtsp_svr_ctrl[1].width, ptOnvifCtrl->m_rtsp_svr_ctrl[1].height);
+	int status = system(rtsp_server_start_cmd);
+    if (status == 0) {
+		td_printf(0, "%s %d %s: rtsp server start success !\n", __FILE__, __LINE__, __FUNCTION__);
+    } else {
+		td_printf(0, "%s %d %s: rtsp server right exit !\n", __FILE__, __LINE__, __FUNCTION__);
+    }
+
 	return NULL;
 }
 
@@ -1436,39 +1429,40 @@ static int StartServer(void *_pThis)
 	pthread_detach(m_threadUdp);
 
 	//start rtsp server
-	iRet = pthread_create(&m_thread_rtsp, NULL, (void* (*)(void*))start_rtsp_server, (void *)ptOnvifCtrl);
-	if(TD_OK != iRet)
-	{
-		td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);	
-		return TD_ERROR;
-	}
-	pthread_detach(m_thread_rtsp);
+	if (ptOnvifCtrl->camera_flag == 0 ) {
+		iRet = pthread_create(&m_thread_rtsp, NULL, (void* (*)(void*))start_rtsp_server_left, (void *)ptOnvifCtrl);
+		if(TD_OK != iRet)
+		{
+			td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);	
+			return TD_ERROR;
+		}
+		pthread_detach(m_thread_rtsp);
 
+		iRet = pthread_create(&m_thread_rtsp, NULL, (void* (*)(void*))start_rtsp_server_right, (void *)ptOnvifCtrl);
+		if(TD_OK != iRet)
+		{
+			td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);	
+			return TD_ERROR;
+		}
+		pthread_detach(m_thread_rtsp);
+	}else if(ptOnvifCtrl->camera_flag == 1){
+		iRet = pthread_create(&m_thread_rtsp, NULL, (void* (*)(void*))start_rtsp_server_left, (void *)ptOnvifCtrl);
+		if(TD_OK != iRet)
+		{
+			td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);	
+			return TD_ERROR;
+		}
+		pthread_detach(m_thread_rtsp);
+	}else if(ptOnvifCtrl->camera_flag == 2) {
+		iRet = pthread_create(&m_thread_rtsp, NULL, (void* (*)(void*))start_rtsp_server_right, (void *)ptOnvifCtrl);
+		if(TD_OK != iRet)
+		{
+			td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);	
+			return TD_ERROR;
+		}
+		pthread_detach(m_thread_rtsp);
+	}
 
-#if 0
-	//Event
-	iRet = pthread_create(&m_threadEvent, NULL, (void *)OnvifEventServer, ptOnvifCtrl);
-	if(TD_OK != iRet)
-	{
-		td_printf(0, "%s %d %s soap_evevt_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);	
-		return TD_ERROR;
-	}
-	pthread_detach(m_threadEvent);
-	
-	//send hello to client
-	if(ptOnvifCtrl->m_stOnvifCfg.m_ptDiscModeRsp->DiscoveryMode == tt__DiscoveryMode__Discoverable)
-	{
-		ptOnvifCtrl->m_stFlag.m_iSendHelloFlag = TD_TRUE;
-	}
-#endif	
-#if 0
-	//开启rtsp服务
-	iRet = RtspServerStart(&ptOnvifCtrl->m_stRtspServer);
-	if(TD_OK != iRet)
-	{
-		return TD_ERROR;
-	}
-	#endif
 	return TD_OK;
 }
 #if 0
@@ -1534,7 +1528,10 @@ int CheckDevice(void * _pThis)
 {
 	static int iFlag = 1;
 	OnvifCtrl *ptOnvifCtrl = (OnvifCtrl *)_pThis;
-	
+	int iRet = 0;
+	pthread_t m_thread_rtsp_left;
+	pthread_t m_thread_rtsp_right;
+
 	if(pointer_valid_check(ptOnvifCtrl))
 	{
 		td_printf(0xff0000, "CheckDevice ptOnvifCtrl=NULL");
@@ -1583,6 +1580,56 @@ int CheckDevice(void * _pThis)
 		PlatformReboot(ptOnvifCtrl);
 	}
 	#endif
+
+	if (ptOnvifCtrl->m_rtsp_svr_ctrl[0].restart_rtsp_flag) {
+		sleep(3);
+
+		//start rtsp server
+		iRet = pthread_create(&m_thread_rtsp_left, NULL, (void* (*)(void*))start_rtsp_server_left, (void *)ptOnvifCtrl);
+		if(TD_OK != iRet)
+		{
+			td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);
+			return TD_OK;	
+		}
+		pthread_detach(m_thread_rtsp_left);
+		ptOnvifCtrl->m_rtsp_svr_ctrl[0].restart_rtsp_flag = 0;
+
+		char tmp_buf[16] = {0};
+		sprintf(tmp_buf, "%d", ptOnvifCtrl->m_rtsp_svr_ctrl[0].width);
+		SetProStr(ptOnvifCtrl->m_ptOnvifDict, "profile_01", -1, "resolution_width", -1, tmp_buf, 0, CFG_REPLACE);
+
+		memset(tmp_buf, 0, 16);
+		sprintf(tmp_buf, "%d", ptOnvifCtrl->m_rtsp_svr_ctrl[0].height);
+		SetProStr(ptOnvifCtrl->m_ptOnvifDict, "profile_01", -1, "resolution_height", -1, tmp_buf, 0, CFG_REPLACE);
+		
+		ptOnvifCtrl->m_stFlag.m_iCfgChangeFlag = TD_TRUE;
+	}
+
+
+	if (ptOnvifCtrl->m_rtsp_svr_ctrl[1].restart_rtsp_flag) {
+		sleep(3);
+
+		//start rtsp server
+		iRet = pthread_create(&m_thread_rtsp_right, NULL, (void* (*)(void*))start_rtsp_server_right, (void *)ptOnvifCtrl);
+		if(TD_OK != iRet)
+		{
+			td_printf(0, "%s %d %s start_rtsp_server thread created error!\n", __FILE__, __LINE__, __FUNCTION__);
+			return TD_OK;
+		}
+		pthread_detach(m_thread_rtsp_right);
+		ptOnvifCtrl->m_rtsp_svr_ctrl[1].restart_rtsp_flag = 0;
+
+		char tmp_buf[16] = {0};
+		sprintf(tmp_buf, "%d", ptOnvifCtrl->m_rtsp_svr_ctrl[1].width);
+		SetProStr(ptOnvifCtrl->m_ptOnvifDict, "profile_02", -1, "resolution_width", -1, tmp_buf, 0, CFG_REPLACE);
+
+		memset(tmp_buf, 0, 16);
+		sprintf(tmp_buf, "%d", ptOnvifCtrl->m_rtsp_svr_ctrl[1].height);
+		SetProStr(ptOnvifCtrl->m_ptOnvifDict, "profile_02", -1, "resolution_height", -1, tmp_buf, 0, CFG_REPLACE);
+		
+		ptOnvifCtrl->m_stFlag.m_iCfgChangeFlag = TD_TRUE;
+	}
+
 	//存储配置文件
 	if(TD_TRUE == ptOnvifCtrl->m_stFlag.m_iCfgChangeFlag)
 	{
@@ -1702,10 +1749,26 @@ void signal_Init(void)
 }
 #endif
 
+void signal_handler(int signal) {
+	printf("Caught signal %d\n", signal);
+    if (signal == SIGINT) {
+        tcp_svr_exit_flag  = 0;
+        udp_svr_exit_flag  = 0;
+		rtsp_svr_exit_flag = 0;
+		main_exit_flag = 0;
+    }
+}
+
 int main(int argc, char *argv[])
 {
 	OnvifCtrl *ptOnvifCtrl = &g_stOnvifCtrl;
 	
+	signal(SIGINT, signal_handler);  // Register the signal handler
+	tcp_svr_exit_flag = 1;
+	udp_svr_exit_flag = 1;
+	rtsp_svr_exit_flag = 1;
+	main_exit_flag = 1;
+
 	//init onvif server
 	Init(ptOnvifCtrl);
 
@@ -1716,9 +1779,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while(1)
+	while(main_exit_flag)
 	{
 		sleep(1);
+
 		CheckDevice(ptOnvifCtrl);
 	}
 

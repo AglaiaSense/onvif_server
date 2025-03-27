@@ -336,6 +336,11 @@ typedef struct{
 	struct _trt__GetMetadataConfigurationOptionsResponse *m_ptMetaCfgOptionsRsp;
 }OnvifCfg;
 
+typedef struct {
+	int width;
+	int height;
+	int restart_rtsp_flag;
+}RtspSvrCtrl_t;
 
 //onvif server
 typedef struct{
@@ -368,6 +373,8 @@ typedef struct{
 	TDanaleInfo		m_stDanaleInfo;		//Danale平台信息
 #endif
 
+	int camera_flag;
+	RtspSvrCtrl_t	m_rtsp_svr_ctrl[2];
 }OnvifCtrl;
 
 #endif

@@ -3797,7 +3797,7 @@ int GMemInit__trt__GetProfiles(void *_pThis)
 	}
 
 	//get profile number
-	iProSize = (enum xsd__boolean)GetProInt(ptOnvifCtrl->m_ptOnvifDict, "media", 0, "profile_size", 0, 1);
+	iProSize = 2;//(enum xsd__boolean)GetProInt(ptOnvifCtrl->m_ptOnvifDict, "media", 0, "profile_size", 0, 1);
 
 	//malloc memory
 	ppTmpMem[iNum++] = calloc(1, sizeof(struct _trt__GetProfilesResponse));
@@ -3841,7 +3841,7 @@ int GMemInit__trt__GetProfiles(void *_pThis)
 		profiles[i].Name = (char *)ppTmpMem[iNum++];
 		profiles[i].fixed = (enum xsd__boolean *)ppTmpMem[iNum++];
 
-	//for hikevent by qiaohaijun @2013.12.06
+		//for hikevent by qiaohaijun @2013.12.06
 		profiles[i].VideoAnalyticsConfiguration = (struct tt__VideoAnalyticsConfiguration *)ppTmpMem[iNum++];
 		profiles[i].VideoAnalyticsConfiguration->AnalyticsEngineConfiguration = (struct tt__AnalyticsEngineConfiguration *)ppTmpMem[iNum++];
 		profiles[i].VideoAnalyticsConfiguration->AnalyticsEngineConfiguration->AnalyticsModule = (struct tt__Config *)ppTmpMem[iNum++];
@@ -3853,7 +3853,7 @@ int GMemInit__trt__GetProfiles(void *_pThis)
 		profiles[i].VideoAnalyticsConfiguration->RuleEngineConfiguration->Rule = (struct tt__Config *)ppTmpMem[iNum++];
 		profiles[i].VideoAnalyticsConfiguration->RuleEngineConfiguration->Rule->Parameters = (struct tt__ItemList *)ppTmpMem[iNum++];
 		profiles[i].VideoAnalyticsConfiguration->RuleEngineConfiguration->Rule->Parameters->SimpleItem = (struct _tt__ItemList_SimpleItem *)ppTmpMem[iNum++];
-	//end
+		//end
 	}
 
 	//全局变量初始化
@@ -4059,7 +4059,7 @@ int GMemInit__trt__GetVideoSourceConfigurations(void *_pThis)
 		return TD_ERROR;
 	}
 
-	iSize = ptOnvifCtrl->m_stNvsInfo.m_iVINum;
+	iSize = 2;//ptOnvifCtrl->m_stNvsInfo.m_iVINum;
 	if(iSize <= 0)
 	{
 		td_printf(0,"%s %d %s error: vsc_num %d", __FILE__, __LINE__, __FUNCTION__, iSize);
@@ -4772,15 +4772,17 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 			iRH264Size = iVLNum;
 		}
 
+		iRH264Size = 4;
+
 		//QualityRange
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRectangleRange));	
-
+#if 0
 		//JPEG
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__JpegOptions));
 		ppTmpMem[iNum++] = calloc(iRJpegSize, sizeof(struct tt__VideoResolution));
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-
+#endif
 		//H264
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__H264Options));
 		ppTmpMem[iNum++] = calloc(iRH264Size, sizeof(struct tt__VideoResolution));
@@ -4788,23 +4790,6 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
 		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
 		ppTmpMem[iNum++] = calloc(VECOH264PS_SIZE, sizeof(enum tt__H264Profile));
-
-		//Extension
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__VideoEncoderOptionsExtension));
-		//JPEG
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__JpegOptions2));
-		ppTmpMem[iNum++] = calloc(iRJpegSize, sizeof(struct tt__VideoResolution));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-		//H264
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__H264Options2));
-		ppTmpMem[iNum++] = calloc(iRH264Size, sizeof(struct tt__VideoResolution));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
-		ppTmpMem[iNum++] = calloc(VECOH264PS_SIZE, sizeof(enum tt__H264Profile));
-		ppTmpMem[iNum++] = calloc(1, sizeof(struct tt__IntRange));
 	}
 
 	if(CheckMem(ppTmpMem, iNum, sizeof(ppTmpMem)/sizeof(ppTmpMem[0])))
@@ -4823,13 +4808,13 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 	{
 		//QualityRange
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].QualityRange = (struct tt__IntRange*)ppTmpMem[iNum++];
-
+#if 0
 		//JPEG
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG = (struct tt__JpegOptions*)ppTmpMem[iNum++];
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->ResolutionsAvailable = (struct tt__VideoResolution*)ppTmpMem[iNum++];
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->FrameRateRange = (struct tt__IntRange *)ppTmpMem[iNum++];
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->EncodingIntervalRange = (struct tt__IntRange *)ppTmpMem[iNum++];
-
+#endif
 		//H264
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264 = (struct tt__H264Options*)ppTmpMem[iNum++];
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->ResolutionsAvailable = (struct tt__VideoResolution*)ppTmpMem[iNum++];
@@ -4837,24 +4822,6 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->FrameRateRange = (struct tt__IntRange *)ppTmpMem[iNum++];
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->EncodingIntervalRange = (struct tt__IntRange *)ppTmpMem[iNum++];
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->H264ProfilesSupported  = (enum tt__H264Profile *)ppTmpMem[iNum++];
-
-		//Extension
-		//JPEG
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension = (struct tt__VideoEncoderOptionsExtension *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG = (struct tt__JpegOptions2 *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->ResolutionsAvailable = (struct tt__VideoResolution *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->FrameRateRange= (struct tt__IntRange *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->EncodingIntervalRange = (struct tt__IntRange *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->BitrateRange = (struct tt__IntRange *)ppTmpMem[iNum++];
-
-		//H264
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264 = (struct tt__H264Options2 *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->ResolutionsAvailable = (struct tt__VideoResolution *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->GovLengthRange = (struct tt__IntRange *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->FrameRateRange = (struct tt__IntRange *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->EncodingIntervalRange = (struct tt__IntRange *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->H264ProfilesSupported = (enum tt__H264Profile *)ppTmpMem[iNum++];
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->BitrateRange = (struct tt__IntRange *)ppTmpMem[iNum++];
 	}
 	
 	//全局变量初始化
@@ -4865,12 +4832,12 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 		if(iVLNum <= 0)
 		{
 			iRJpegSize = 1;
-			iRH264Size = 1;
+			//iRH264Size = 1;
 		}
 		else
 		{
 			iRJpegSize = iVLNum;
-			iRH264Size = iVLNum;
+			//iRH264Size = iVLNum;
 		}
 
 		//QualityRange
@@ -4878,55 +4845,19 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].QualityRange->Max = VECOQRMAX;
 
 		//size
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->__sizeResolutionsAvailable = iRJpegSize;
+		//ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->__sizeResolutionsAvailable = iRJpegSize;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->__sizeResolutionsAvailable = iRH264Size;
 
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->__sizeResolutionsAvailable = iRJpegSize;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->__sizeResolutionsAvailable = iRH264Size;
-
 		//分辨率列表
-		if(iVLNum > 0)
-		{
-			for(j = 0; j < iVLNum; j++)
-			{
-				GetVideoWidthHeight(piVideoList[j], 0, \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->ResolutionsAvailable[j].Width), \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->ResolutionsAvailable[j].Height));
-				GetVideoWidthHeight(piVideoList[j], 0, \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->ResolutionsAvailable[j].Width), \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->ResolutionsAvailable[j].Height));
-
-				//Extension
-				GetVideoWidthHeight(piVideoList[j], 0, \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->ResolutionsAvailable[j].Width), \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->ResolutionsAvailable[j].Height));
-				GetVideoWidthHeight(piVideoList[j], 0, \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->ResolutionsAvailable[j].Width), \
-					(unsigned short*)&(ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->ResolutionsAvailable[j].Height));
-			}
-		}
-		else
-		{
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->ResolutionsAvailable[0].Width  = 704;
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->ResolutionsAvailable[0].Height = 576;
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->ResolutionsAvailable[0].Width  = 704;
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->ResolutionsAvailable[0].Height = 576;
-
-			//Extension
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->ResolutionsAvailable[0].Width  = 704;
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->ResolutionsAvailable[0].Height = 576;
-
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->ResolutionsAvailable[0].Width = 704;
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->ResolutionsAvailable[0].Height = 576;
-		}
 
 		//JPEG编码参数范围
+		#if 0
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->FrameRateRange->Min= VECOJPEGFRRMIN;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->FrameRateRange->Max= VECOJPEGFRRMAX;
 			
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->EncodingIntervalRange->Min= VECOJPEGEIRMIN;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].JPEG->EncodingIntervalRange->Max= VECOJPEGEIRMAX;
-
+		#endif
 		//H264编码参数范围
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->GovLengthRange->Min= VECOH264GLRMIN;
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->GovLengthRange->Max= VECOH264GLRMAX;
@@ -4940,40 +4871,13 @@ int GMemInit__trt__GetVideoEncoderConfigurationOptions(void *_pThis)
 		
 		//H264ProfilesSupported
 		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->__sizeH264ProfilesSupported = VECOH264PS_SIZE;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->__sizeH264ProfilesSupported = VECOH264PS_SIZE;
 
 		for(j = 0; j < VECOH264PS_SIZE; j++)
 		{
 			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].H264->H264ProfilesSupported[j] = (enum tt__H264Profile)(VECOH264PSMODE_01 + j);
-			//Extension
-			ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->H264ProfilesSupported[j] = (enum tt__H264Profile)(VECOH264PSMODE_01 + j);
 		}
-
-		//扩展
-		//JPEG编码参数范围
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->FrameRateRange->Min = VECOJPEGFRRMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->FrameRateRange->Max = VECOJPEGFRRMAX;
-
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->EncodingIntervalRange->Min = VECOJPEGEIRMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->EncodingIntervalRange->Max = VECOJPEGEIRMAX;
-
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->BitrateRange->Min = VECOBITRATEMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->JPEG->BitrateRange->Max = VECOBITRATEMAX;
-
-		//H264编码参数范围
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->GovLengthRange->Min= VECOH264GLRMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->GovLengthRange->Max= VECOH264GLRMAX;
-
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->FrameRateRange->Min= VECOH264FRRMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->FrameRateRange->Max= VECOH264FRRMAX;
-
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->EncodingIntervalRange->Min= VECOH264EIRMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->EncodingIntervalRange->Max= VECOH264EIRMAX;
-
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->BitrateRange->Min = VECOBITRATEMIN;
-		ptOnvifCtrl->m_stOnvifCfg.m_ptVideoEncoderCfgOptRsp->Options[i].Extension->H264->BitrateRange->Max = VECOBITRATEMAX;
 	}
-
+	
 	return TD_OK;
 }
 
